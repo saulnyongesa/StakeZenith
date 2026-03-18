@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StakeZenith | Live Trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        body { 
+            background-color: #1a1a1a; 
+            color: #ffffff; 
+            font-family: Arial, sans-serif; 
+            overflow: hidden; 
+            margin: 0;
+        }
+        .header-bg { background-color: #111; border-bottom: 2px solid #333; }
+        
+        /* Chat Styles */
+        .chat-panel { background-color: #000; border: 2px solid #222; border-radius: 4px; }
+        .chat-header { background-color: #185a18; color: white; border-top-left-radius: 2px; border-top-right-radius: 2px; }
+        .chat-system { color: #ffff00; font-size: 11px; }
+        .chat-user { color: #00ff00; }
+        .chat-scroll { height: calc(100vh - 140px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #333 #000; }
+        
+        /* Chart Styles */
+        .chart-container { background-color: #050505; border: 1px solid #333; border-radius: 4px; position: relative; }
+        #tradeChart { width: 100%; height: 350px; }
+        .rate-box { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); border: 1px solid #fff; padding: 4px 10px; font-family: monospace; font-size: 16px; font-weight: bold; border-radius: 4px; background: rgba(0,0,0,0.5); letter-spacing: 2px;}
+        
+        /* Controls Styles */
+        .btn-ctrl { background-color: #111; border: 1px solid #444; color: white; cursor: pointer; }
+        .btn-ctrl:hover { background-color: #222; }
+        .input-dark { background-color: #fff; color: #000; text-align: center; font-weight: bold; border: none; outline: none; }
+        .btn-quick { background-color: #0a2a0a; border: 1px solid #00ff00; color: #00ff00; font-weight: bold; border-radius: 2px; }
+        .btn-quick:hover { background-color: #0f3f0f; }
+        .btn-buy { background-color: #00ff00; color: #000; font-weight: 900; font-size: 20px; border-radius: 4px; border: none; }
+        .btn-buy:active { transform: scale(0.98); }
+        .btn-sell { background-color: #cc0000; color: #fff; font-weight: 900; font-size: 20px; border-radius: 4px; border: none; }
+        .btn-sell:active { transform: scale(0.98); }
+
+        /* Modals */
+        .modal-overlay { background: rgba(0,0,0,0.85); backdrop-filter: blur(2px); }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="h-12 header-bg flex justify-between items-center px-4 shrink-0">
+        <div class="flex items-center space-x-2">
+            <span class="text-red-600 font-black text-2xl italic tracking-tighter">Stake<span class="text-green-500">Zenith</span></span>
+        </div>
+
+        <div class="flex items-center space-x-3 text-sm">
+            <button onclick="document.getElementById('tutorial-modal').classList.remove('hidden')" class="border border-gray-600 px-3 py-1 rounded hover:bg-gray-800 transition-all">How to Trade</button>
+            
+            {% if user.is_authenticated %}
+            <div class="flex items-center space-x-2 border-l border-gray-700 pl-3">
+                <div class="w-6 h-6 bg-gray-400 rounded-full overflow-hidden flex items-center justify-center">👤</div>
+                <div class="flex flex-col leading-tight">
+                    <span class="text-gray-300 text-xs">{{ user.username }}</span>
+                    <span class="text-yellow-500 font-bold text-xs" id="balance-display">KES {{ user.zenithprofile.balance }}</span>
+                </div>
+            </div>
+            <button onclick="document.getElementById('deposit-modal').classList.remove('hidden')" class="bg-green-600 hover:bg-green-500 text-white px-4 py-1 font-bold ml-2">Deposit</button>
+            <button onclick="alert('Withdrawals disabled pending verification.')" class="bg-gray-800 border border-gray-600 hover:bg-gray-700 text-white px-4 py-1">Withdraw</button>
+            <button onclick="logout()" class="text-gray-500 hover:text-white ml-2">🚪</button>
+            {% else %}
+            <button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="bg-green-600 px-4 py-1 font-bold rounded">Login / Register</button>
+            {% endif %}
+            <div class="text-2xl text-gray-500 cursor-pointer pl-2">≡</div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden p-2 gap-2 relative">
+        
+        {% if not user.is_authenticated %}
+        <div class="absolute inset-0 z-40 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+            <div class="bg-[#111] p-6 rounded border border-gray-700 text-center shadow-2xl">
+                <h2 class="text-xl font-bold mb-4">Authentication Required</h2>
+                <button onclick="document.getElementById('auth-modal').classList.remove('hidden')" class="bg-green-600 text-white px-8 py-2 font-bold hover:bg-green-500">Login to Trade</button>
+            </div>
+        </div>
+        {% endif %}
+
+        <aside class="w-[380px] chat-panel flex flex-col shrink-0">
+            <div class="chat-header py-2 text-center font-bold flex justify-center items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                Chat
+            </div>
+            <div id="chat-feed" class="flex-1 chat-scroll p-2 space-y-1">
+                </div>
+            
+            <div class="flex bg-white p-1 cursor-pointer" onclick="showChatExcuse()">
+                <div class="bg-gray-200 text-gray-600 px-2 flex items-center text-xs">✍</div>
+                <input type="text" placeholder="Chat is currently disabled..." class="flex-1 border-none outline-none text-gray-500 px-2 text-sm pointer-events-none" disabled>
+                <button class="bg-gray-800 text-gray-400 px-4 text-xs font-bold flex items-center pointer-events-none">SEND <span>►</span></button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col gap-2 min-w-0">
+            <div class="chart-container flex-1">
+                <div class="rate-box text-white" id="price-ticker">Rate: 0.0000</div>
+                <div class="absolute left-2 top-0 bottom-0 flex flex-col justify-between py-4 text-[10px] text-gray-400 z-10 font-mono" id="y-axis">
+                    <span>+0.50</span><span>+0.25</span><span class="text-white">-0.00-</span><span>-0.25</span><span>-0.50</span>
+                </div>
+                <canvas id="tradeChart"></canvas>
+            </div>
+
+            <div class="flex flex-col gap-2 bg-[#111] p-2 border border-gray-800 rounded">
+                
+                <div class="flex gap-1 h-8">
+                    <button onclick="modAmt(0.5)" class="btn-ctrl px-4 text-xs font-bold rounded-sm">1/2</button>
+                    <button onclick="modAmt(-100)" class="btn-ctrl px-4 font-bold rounded-sm">-</button>
+                    <input type="number" id="trade-amount" value="300" class="input-dark flex-1 rounded-sm text-lg">
+                    <button onclick="modAmt(100)" class="btn-ctrl px-4 font-bold rounded-sm">+</button>
+                    <button onclick="modAmt(2)" class="btn-ctrl px-4 text-xs font-bold rounded-sm">x2</button>
+                </div>
+
+                <div class="flex gap-1 h-8">
+                    <button onclick="setAmt(300)" class="btn-quick flex-1">300</button>
+                    <button onclick="setAmt(500)" class="btn-quick flex-1">500</button>
+                    <button onclick="setAmt(1000)" class="btn-quick flex-1">1000</button>
+                    <button onclick="setAmt(300)" class="bg-[#330000] border border-red-800 text-gray-400 hover:bg-[#440000] px-6 rounded-sm flex justify-center items-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 h-14 mt-1">
+                    <button onclick="executeTrade('BUY')" class="btn-buy flex-1 shadow-[0_4px_0_#008800] active:shadow-[0_0px_0_#008800] active:translate-y-1 transition-all">BUY</button>
+                    <button onclick="executeTrade('SELL')" class="btn-sell flex-1 shadow-[0_4px_0_#880000] active:shadow-[0_0px_0_#880000] active:translate-y-1 transition-all">SELL</button>
+                </div>
+            </div>
+            
+            <div class="text-center text-[9px] text-gray-500 mt-1 leading-tight">
+                StakeZenith is a simulated platform. Operations reflect virtual environments. <br>
+                <span class="text-yellow-600">Terms & Conditions</span> apply | ©2026, StakeZenith. All rights reserved.
+            </div>
+        </main>
+    </div>
+
+    <div id="auth-modal" class="fixed inset-0 modal-overlay hidden z-50 flex justify-center items-center">
+        <div class="bg-[#1a1a1a] w-full max-w-sm rounded p-6 border border-gray-700 relative shadow-2xl">
+            <button onclick="document.getElementById('auth-modal').classList.add('hidden')" class="absolute top-2 right-4 text-gray-500 text-xl hover:text-white">&times;</button>
+            <h2 class="text-xl font-bold mb-4 text-center">Account Access</h2>
+            <input type="text" id="auth-user" placeholder="Username" class="w-full bg-[#000] border border-gray-600 text-white rounded p-3 mb-3 outline-none focus:border-green-500">
+            <input type="password" id="auth-pass" placeholder="Password" class="w-full bg-[#000] border border-gray-600 text-white rounded p-3 mb-4 outline-none focus:border-green-500">
+            <button onclick="handleAuth('login')" class="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold mb-2 rounded">Login</button>
+            <button onclick="handleAuth('register')" class="w-full bg-[#333] hover:bg-[#444] text-white py-3 font-bold rounded">Register</button>
+        </div>
+    </div>
+
+    <div id="deposit-modal" class="fixed inset-0 modal-overlay hidden z-50 flex justify-center items-center">
+        <div class="bg-[#1a1a1a] w-full max-w-sm rounded p-6 border border-gray-700 relative shadow-2xl">
+            <button onclick="document.getElementById('deposit-modal').classList.add('hidden')" class="absolute top-2 right-4 text-gray-500 text-xl hover:text-white">&times;</button>
+            <h2 class="text-xl font-bold mb-4 text-green-500 text-center">Fund via M-Pesa</h2>
+            
+            <label class="block text-gray-400 text-[10px] uppercase font-bold mb-1">Amount (Min KES 300)</label>
+            <input type="number" id="dep-amt" placeholder="300" class="w-full bg-[#000] border border-gray-600 text-white rounded p-3 mb-3 outline-none text-center text-lg font-bold focus:border-green-500">
+            
+            <label class="block text-gray-400 text-[10px] uppercase font-bold mb-1">M-Pesa Number</label>
+            <input type="text" id="dep-phone" placeholder="07XX XXX XXX" class="w-full bg-[#000] border border-gray-600 text-white rounded p-3 mb-6 outline-none text-center focus:border-green-500">
+            
+            <button onclick="initiateDeposit()" id="dep-btn" class="w-full bg-green-600 hover:bg-green-500 text-white py-3 font-bold rounded shadow-lg">Push to Phone</button>
+        </div>
+    </div>
+    <div id="tutorial-modal" class="fixed inset-0 modal-overlay hidden z-50 flex justify-center items-center p-4">
+        <div class="bg-[#1a1a1a] w-full max-w-lg rounded p-6 border border-gray-700 relative shadow-2xl">
+            <button onclick="document.getElementById('tutorial-modal').classList.add('hidden')" class="absolute top-2 right-4 text-gray-500 text-2xl hover:text-white">&times;</button>
+            <h2 class="text-2xl font-black mb-6 text-center border-b border-gray-800 pb-4">How to Trade on Stake<span class="text-green-500">Zenith</span></h2>
+            
+            <div class="space-y-5 text-sm text-gray-300">
+                <div class="flex gap-4 items-start">
+                    <div class="bg-gray-800 p-2 rounded text-xl border border-gray-700">💰</div>
+                    <div>
+                        <h3 class="font-bold text-white text-base mb-1">1. Fund Your Account</h3>
+                        <p>Click <strong class="text-green-500">Deposit</strong> to add funds via M-Pesa. The minimum deposit amount is KES 300 to activate your live trading profile.</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 items-start">
+                    <div class="bg-gray-800 p-2 rounded text-xl border border-gray-700">📈</div>
+                    <div>
+                        <h3 class="font-bold text-white text-base mb-1">2. Analyze the Market</h3>
+                        <p>Watch the live ticker. If the line is in the <span class="text-green-400 font-bold bg-green-900/30 px-1 rounded">Green Zone</span>, the asset is trending up. If it drops to the <span class="text-red-500 font-bold bg-red-900/30 px-1 rounded">Red Zone</span>, it is in a downtrend.</p>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 items-start">
+                    <div class="bg-gray-800 p-2 rounded text-xl border border-gray-700">⚡</div>
+                    <div>
+                        <h3 class="font-bold text-white text-base mb-1">3. Place Your Prediction</h3>
+                        <p>Set your investment amount. Click <strong class="text-green-500">CALL ↑</strong> (Buy) if you predict the price will go UP. Click <strong class="text-red-500">PUT ↓</strong> (Sell) if you predict the price will drop.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4 items-start">
+                    <div class="bg-gray-800 p-2 rounded text-xl border border-gray-700">🏆</div>
+                    <div>
+                        <h3 class="font-bold text-white text-base mb-1">4. Collect Profits</h3>
+                        <p>If your prediction is correct when the trade expires, your investment is multiplied by the market rate (up to 95% profit) and instantly added to your balance.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <button onclick="document.getElementById('tutorial-modal').classList.add('hidden')" class="bg-green-600 hover:bg-green-500 text-white w-full py-3 font-bold rounded text-lg transition-all shadow-lg active:scale-95">I Understand, Let's Trade!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const csrfToken = '{{ csrf_token }}';
+        const isAuth = "{{ user.is_authenticated }}" === "True";
+
+        // --- Controls Logic ---
+        const amtInput = document.getElementById('trade-amount');
+        function setAmt(val) { amtInput.value = val; }
+        function modAmt(val) {
+            let current = parseFloat(amtInput.value) || 0;
+            if (val === 0.5) current = current / 2;
+            else if (val === 2) current = current * 2;
+            else current += val;
+            amtInput.value = Math.max(10, current.toFixed(0)); // Don't go below 10
+        }
+
+        // --- Disabled Chat Excuse ---
+        function showChatExcuse() {
+            Swal.fire({
+                title: 'Chat Disabled',
+                text: 'To protect our community from spam, live chat is temporarily disabled for new or unverified accounts.',
+                icon: 'info',
+                background: '#1a1a1a',
+                color: '#fff',
+                confirmButtonColor: '#008800'
+            });
+        }
+
+        // --- Fake Chat Logic (Matching Image exactly) ---
+        const chatFeed = document.getElementById('chat-feed');
+        const usernames = ['Alexander990', 'Sabo', 'Dicken', 'JudeNu', 'Akiondo', 'DennisKosgei', 'Faith45', 'MarcusIcon', 'Amir254', 'Hipo'];
+        
+        function appendChat() {
+            const user = usernames[Math.floor(Math.random() * usernames.length)];
+            const amt = (Math.random() * 500 + 50).toFixed(2);
+            const msg = document.createElement('div');
+            msg.className = "chat-system leading-tight";
+            
+            if(Math.random() > 0.85) {
+                msg.innerHTML = `<span style="color: #ff9900">${user}:</span> BONUS of 10.00 has been issued by ${user}.`;
+            } else {
+                msg.innerHTML = `System: CONGRATULATIONS @${user} on your withdrawal of <span class="chat-user">${amt}</span> 🤑🤑.`;
+            }
+            
+            chatFeed.appendChild(msg);
+            chatFeed.scrollTop = chatFeed.scrollHeight;
+            if(chatFeed.children.length > 40) chatFeed.firstChild.remove();
+        }
+        for(let i=0; i<15; i++) appendChat();
+        setInterval(appendChat, 2000);
+
+        // --- REALISTIC LIVE CHART ENGINE ---
+        const canvas = document.getElementById('tradeChart');
+        const ctx = canvas.getContext('2d');
+        const ticker = document.getElementById('price-ticker');
+        
+        let priceHistory = [];
+        let currentPrice = 0;
+        let maxDataPoints = 0; // Calculated based on width
+        let pointSpacing = 4; // Pixels between points
+        
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            maxDataPoints = Math.floor(canvas.width / pointSpacing) + 2;
+            
+            // Fill history if empty
+            if(priceHistory.length === 0) {
+                for(let i=0; i<maxDataPoints; i++) priceHistory.push(0);
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Simulate Market Ticks
+        setInterval(() => {
+            // Random Walk with Volatility and Momentum
+            let volatility = Math.random() * 3;
+            if (Math.random() > 0.95) volatility *= 4; // Occasional spike
+            
+            let change = (Math.random() - 0.5) * volatility;
+            currentPrice += change;
+
+            // Apply slight gravity to pull back to 0 if it goes too extreme
+            currentPrice -= (currentPrice * 0.01); 
+
+            priceHistory.push(currentPrice);
+            if(priceHistory.length > maxDataPoints) priceHistory.shift();
+            
+            ticker.innerText = `Rate: ${(currentPrice * 0.01).toFixed(4)}`;
+            
+            // Update colors of ticker based on direction
+            if(change > 0) ticker.style.color = "#00ff00";
+            else if (change < 0) ticker.style.color = "#ff0000";
+            else ticker.style.color = "#ffffff";
+            
+        }, 80); // Updates every 80ms for that "live" feel
+
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerY = canvas.height / 2;
+
+            // Draw Grid Lines
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
+            for(let i=1; i<5; i++) {
+                ctx.beginPath(); ctx.moveTo(0, i*(canvas.height/5)); ctx.lineTo(canvas.width, i*(canvas.height/5)); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.moveTo(0, centerY); ctx.lineTo(canvas.width, centerY); ctx.strokeStyle = '#555'; ctx.stroke();
+            ctx.setLineDash([]); 
+
+            if(priceHistory.length < 2) {
+                requestAnimationFrame(drawChart);
+                return;
+            }
+
+            // Calculate Min/Max for dynamic scaling
+            let minPrice = Math.min(...priceHistory);
+            let maxPrice = Math.max(...priceHistory);
+            let range = Math.max(Math.abs(minPrice), Math.abs(maxPrice), 15); // Minimum scale range
+            let scaleY = (canvas.height / 2) / (range * 1.2);
+
+            // Map history to X/Y coordinates
+            let points = [];
+            for(let i=0; i<priceHistory.length; i++) {
+                let x = i * pointSpacing;
+                let y = centerY - (priceHistory[i] * scaleY);
+                points.push({x, y});
+            }
+
+            // Create Path
+            const linePath = new Path2D();
+            linePath.moveTo(points[0].x, points[0].y);
+            points.forEach(p => linePath.lineTo(p.x, p.y));
+
+            // Fill Green (Above Centerline)
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, 0, canvas.width, centerY); ctx.clip();
+            ctx.beginPath(); ctx.moveTo(points[0].x, centerY);
+            points.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(points[points.length-1].x, centerY);
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.15)'; ctx.fill();
+            ctx.restore();
+
+            // Fill Red (Below Centerline)
+            ctx.save();
+            ctx.beginPath(); ctx.rect(0, centerY, canvas.width, canvas.height); ctx.clip();
+            ctx.beginPath(); ctx.moveTo(points[0].x, centerY);
+            points.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.lineTo(points[points.length-1].x, centerY);
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; ctx.fill();
+            ctx.restore();
+
+            // Draw Line
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            
+            // Add slight glow
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = '#00ff00';
+            ctx.stroke(linePath);
+            ctx.shadowBlur = 0; // reset
+
+            // Draw current price "dot"
+            const lastPoint = points[points.length-1];
+            ctx.beginPath();
+            ctx.arc(lastPoint.x, lastPoint.y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffffff';
+            ctx.fill();
+            
+            requestAnimationFrame(drawChart);
+        }
+        requestAnimationFrame(drawChart);
+
+        // --- AUTH & M-PESA LOGIC ---
+        async function handleAuth(action) {
+            const user = document.getElementById('auth-user').value;
+            const pass = document.getElementById('auth-pass').value;
+            if(!user || !pass) return Swal.fire({title: 'Error', text: 'Fill all fields', icon: 'error', background: '#1a1a1a', color: '#fff'});
+
+            const res = await fetch(action === 'login' ? '/api/login/' : '/api/register/', {
+                method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                body: JSON.stringify({username: user, password: pass})
+            });
+            const data = await res.json();
+            if(data.success) location.reload();
+            else Swal.fire({title: 'Failed', text: data.message, icon: 'error', background: '#1a1a1a', color: '#fff'});
+        }
+
+        async function logout() {
+            await fetch('/api/logout/', {method: 'POST', headers: {'X-CSRFToken': csrfToken}});
+            location.reload();
+        }
+
+        async function initiateDeposit() {
+            const amt = parseFloat(document.getElementById('dep-amt').value);
+            const phone = document.getElementById('dep-phone').value;
+            const btn = document.getElementById('dep-btn');
+            
+            // Minimum Deposit Logic
+            if(!amt || !phone) return Swal.fire({title: 'Wait', text: 'Enter amount and phone', icon: 'warning', background: '#1a1a1a', color: '#fff'});
+            if(amt < 300) return Swal.fire({title: 'Minimum Deposit', text: 'The minimum deposit amount is KES 300.', icon: 'error', background: '#1a1a1a', color: '#fff', confirmButtonColor: '#008800'});
+            
+            btn.disabled = true; btn.innerText = "Processing STK...";
+            
+            try {
+                const res = await fetch('/initiate-payment/', {
+                    method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                    body: JSON.stringify({ phone_number: phone, amount: amt })
+                });
+                const d = await res.json();
+                if(d.success) {
+                    Swal.fire({title: 'STK Sent!', text: 'Enter M-Pesa PIN on your phone.', icon: 'info', showConfirmButton: false, background: '#1a1a1a', color: '#fff'});
+                    pollStatus(d.checkout_request_id);
+                } else throw new Error(d.message);
+            } catch(e) {
+                Swal.fire({title: 'Error', text: e.message, icon: 'error', background: '#1a1a1a', color: '#fff'});
+                btn.disabled = false; btn.innerText = "Push to Phone";
+            }
+        }
+
+        function pollStatus(id) {
+            const timer = setInterval(async () => {
+                const res = await fetch(`/check-status/${id}/`);
+                const d = await res.json();
+                if(d.status === 'COMPLETED') {
+                    clearInterval(timer);
+                    location.reload();
+                }
+            }, 5000);
+        }
+
+        // --- Rigged Trading ---
+        async function executeTrade(type) {
+            if(!isAuth) return document.getElementById('auth-modal').classList.remove('hidden');
+            
+            const amt = document.getElementById('trade-amount').value;
+            if(!amt || amt <= 0) return Swal.fire({title: 'Wait', text: 'Enter valid amount', icon: 'warning', background: '#1a1a1a', color: '#fff'});
+
+            let balEl = document.getElementById('balance-display');
+            let currentBal = parseFloat(balEl.innerText.replace('KES ', ''));
+            if(currentBal < amt) return Swal.fire({title: 'Insufficient Funds', text: 'Please deposit first.', icon: 'error', background: '#1a1a1a', color: '#fff', confirmButtonColor: '#008800'});
+            
+            Swal.fire({
+                title: 'Order Placed', 
+                html: `Executing ${type} for KES ${amt}...`, 
+                background: '#1a1a1a', color: '#fff', showConfirmButton: false,
+                didOpen: () => { Swal.showLoading() }
+            });
+
+            const res = await fetch('/execute-trade/', {
+                method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                body: JSON.stringify({ amount: amt, type: type })
+            });
+            const data = await res.json();
+
+            setTimeout(() => {
+                if(data.success) {
+                    balEl.innerText = `KES ${data.new_balance.toFixed(2)}`;
+                    Swal.fire({
+                        title: 'Trade Lost',
+                        text: `Your ${type} order closed out of the money. Lost KES ${amt}`,
+                        icon: 'error',
+                        background: '#1a1a1a', color: '#fff',
+                        confirmButtonColor: '#cc0000'
+                    });
+                } else {
+                    Swal.fire({title: 'Error', text: data.message, icon: 'warning', background: '#1a1a1a', color: '#fff'});
+                }
+            }, 1200);
+        }
+    </script>
+</body>
+</html>
