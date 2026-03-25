@@ -12,7 +12,7 @@ class MpesaC2bCredential:
     consumer_key = settings.CONSUMER_KEY
     consumer_secret = settings.CONSUMER_SECRET
     api_URL = 'https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials'
-    call_back_url = 'https://stakezenith-86ac74e1ffa9.herokuapp.com/mpesa-callback/'
+    call_back_url = 'https://domain.com/mpesa-callback/'
     request_api_url = "https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
 
 class MpesaAccessToken:
@@ -35,8 +35,6 @@ class LipanaMpesaPassword:
     def get_password():
         lipa_time = datetime.now().strftime('%Y%m%d%H%M%S')
         
-        # NOTE: Put your STORE NUMBER here, NOT the Till Number
-        # store_number = "4656460" 
         short_code = settings.BUSINESS_SHORT_CODE
         
         passkey = settings.PASSKEY
