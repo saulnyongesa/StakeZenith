@@ -1,36 +1,37 @@
-StakeZenith - Aviator Simulation
+StakeZenith - Simulated Trading Platform
 
 Repository: https://github.com/saulnyongesa/StakeZenith.git
 
 *** DISCLAIMER: FOR EDUCATIONAL AND LEARNING PURPOSES ONLY ***
-This project is a simulation of a crash-style betting game built strictly for educational purposes, portfolio demonstration, and learning UI/UX design, HTML5 Canvas animations, and payment gateway integration. It is NOT a real gambling application. The creator and contributors are not responsible for any misuse of this software.
+This project is a simulated financial trading platform built strictly for educational purposes, portfolio demonstration, and learning backend architecture, real-time data visualization, and payment gateway integration. It is NOT a real brokerage or financial application. The creator and contributors are not responsible for any misuse of this software, nor does it provide real financial advice or real-market execution.
 
 -------------------------------------------------------------------
 
 ABOUT THE PROJECT
-StakeZenith is a web-based crash game simulation inspired by the popular "Aviator" game. It features a fully responsive, highly polished frontend built with TailwindCSS and Vanilla JavaScript, integrated with a Django backend.
+StakeZenith Trading is a web-based simulation platform designed to mimic the experience of trading digital assets or synthetic markets. It allows users to create accounts, analyze price movements via interactive charts, and execute simulated Buy/Sell orders. 
 
-The game includes a deterministic (admin-controlled) flight engine, a simulated live betting feed, and seamless UI state management to mimic the tension and interactions of a real-time betting platform.
+The project demonstrates full-stack capabilities, integrating a Django backend with a dynamic, responsive frontend. It also features a sandbox payment integration to simulate how users would fund their trading accounts in a real-world scenario.
 
 FEATURES
-- HTML5 Canvas Flight Engine: Smooth, mathematical curve rendering with moving background grids and randomized plane wobble for realism.
-- Deterministic Crash Sequence: The flight outcomes are read from a predefined array, allowing full administrative control over the simulation.
-- Dual Betting Panels: Users can place and manage two simultaneous bets with dynamic multiplier calculations.
+- Interactive Price Charts: Visual representation of asset price movements using JavaScript charting libraries for technical analysis.
+- Order Execution Engine: Simulated market and limit orders allowing users to "Buy" and "Sell" assets in real-time.
+- Portfolio Management: Real-time tracking of user balances, open positions, active trades, and historical profit/loss (P&L).
 - M-Pesa Integration: 
-  * Simulated push-to-phone deposit modal.
-  * Rigged withdrawal system designed to simulate transaction failures for educational demonstration.
-- Micro-Interactions: Loading spinners, strict balance checking, dynamic button states (Bet, Cancel, Cash Out), and sound effects.
-- Simulated Live Feed: Auto-generating live bets feed to populate the UI with realistic player activity.
+  * Simulated push-to-phone deposit system via the Daraja API sandbox.
+  * Controlled withdrawal system for educational demonstration of payment flows.
+- User Authentication: Secure login and registration system protecting user data and trade history.
+- Admin Dashboard: Backend controls for managing users, monitoring simulated transactions, and adjusting market parameters.
 
 BUILT WITH
-- Frontend: HTML5, TailwindCSS, Vanilla JavaScript, SweetAlert2
-- Graphics: HTML5 <canvas>, Inline SVG
+- Frontend: HTML5, TailwindCSS, Vanilla JavaScript, Charting Libraries (e.g., Chart.js / TradingView Lightweight Charts)
 - Backend: Django (Python)
+- Database: SQLite (Development) / PostgreSQL (Production ready)
+- Payments: Safaricom Daraja API (Sandbox)
 
 -------------------------------------------------------------------
 
 GETTING STARTED
-Follow these instructions to set up and run the project on your local machine.
+Follow these instructions to set up and run the trading platform on your local machine.
 
 Prerequisites
 Ensure you have the following installed on your local machine:
@@ -72,9 +73,6 @@ Installation & Setup
 6. Create a superuser (Admin)
    python manage.py createsuperuser
 
-7. Add the static audio asset
-   Ensure you have an audio file named aviator.mpeg (or .mp3 depending on your template setup) placed inside your Django app's static folder so the flight sound plays correctly.
-
 Running the Application
 Start the Django development server:
    python manage.py runserver
@@ -84,18 +82,5 @@ Open your web browser and navigate to:
 
 -------------------------------------------------------------------
 
-HOW TO CONTROL THE CRASH SEQUENCE
-This simulation uses a predetermined array to control exactly when the plane crashes. 
-
-To edit the sequence, open the main HTML template containing the JavaScript engine and locate the crashSequence array:
-
-// --- ADMIN CRASH SEQUENCE ---
-// The game will perfectly hit these exact multipliers sequentially.
-const crashSequence = [1.12, 2.45, 1.05, 5.50, 1.80, 1.00, 3.45, 12.00, 1.20, 2.10];
-
-Modify these numbers to dictate the outcome of the upcoming rounds. The engine loops back to the beginning of the array once it reaches the end.
-
--------------------------------------------------------------------
-
 LICENSE
-This project is intended for personal portfolio use and educational study.
+This project is intended for personal portfolio use, technical demonstration, and educational study.
